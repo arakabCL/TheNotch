@@ -217,8 +217,11 @@ extension Array where Element == Participant {
 
 extension Participant {
     init(from participant: EKParticipant, isOrganizer: Bool) {
+        let email = participant.url.scheme == "mailto" ? participant.url.absoluteString.replacingOccurrences(of: "mailto:", with: "") : nil
+        
         self.init(
             name: participant.name ?? participant.url.absoluteString.replacingOccurrences(of: "mailto:", with: ""),
+            email: email,
             status: .init(from: participant.participantStatus),
             isOrganizer: isOrganizer,
             isCurrentUser: participant.isCurrentUser

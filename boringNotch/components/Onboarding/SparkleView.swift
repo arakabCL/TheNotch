@@ -57,8 +57,9 @@ class SparkleNSView: NSView {
         // Adjust birth rate based on view size
         let area = bounds.width * bounds.height
         let baseBirthRate: Float = 50
-        let adjustedBirthRate = 20 // Assuming 200x200 as base size
-        emitterLayer.emitterCells?.first?.birthRate = Float(adjustedBirthRate)
+        let areaMultiplier = Float(area) / (200.0 * 50.0) // Normalize relative to a 200x50 area
+        let adjustedBirthRate = baseBirthRate * areaMultiplier
+        emitterLayer.emitterCells?.first?.birthRate = adjustedBirthRate
     }
     
     override func setFrameSize(_ newSize: NSSize) {

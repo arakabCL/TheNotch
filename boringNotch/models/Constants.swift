@@ -177,6 +177,11 @@ extension Defaults.Keys {
     static let showFullEventTitles = Key<Bool>("showFullEventTitles", default: false)
     static let autoScrollToNextEvent = Key<Bool>("autoScrollToNextEvent", default: true)
     
+    // MARK: Google Calendar
+    static let useGoogleCalendar = Key<Bool>("useGoogleCalendar", default: true)
+    static let googleCalendarPollingInterval = Key<Double>("googleCalendarPollingInterval", default: 60)
+    static let googleCalendarClientId = Key<String>("googleCalendarClientId", default: "")
+    
     // MARK: Fullscreen Media Detection
     static let hideNotchOption = Key<HideNotchOption>("hideNotchOption", default: .nowPlayingOnly)
     

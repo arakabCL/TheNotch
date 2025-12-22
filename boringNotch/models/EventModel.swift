@@ -113,6 +113,7 @@ extension EventModel {
 
 struct Participant: Hashable {
     let name: String
+    let email: String?
     let status: AttendanceStatus
     let isOrganizer: Bool
     let isCurrentUser: Bool
