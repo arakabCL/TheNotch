@@ -21,20 +21,10 @@ class GoogleAuthManager: ObservableObject {
     @Published var userEmail: String?
     @Published var errorMessage: String?
     
-    // MARK: - OAuth2 Configuration
-    // Credentials are stored in Keychain - configure via Settings
-    private let clientIdKey = "com.boringNotch.googleCalendar.clientId"
-    private let clientSecretKey = "com.boringNotch.googleCalendar.clientSecret"
-    
-    private var clientId: String {
-        getFromKeychain(key: clientIdKey) ?? ""
-    }
-    
-    private var clientSecret: String {
-        getFromKeychain(key: clientSecretKey) ?? ""
-    }
-    
-    private let redirectUri = "http://127.0.0.1:8080/oauth/callback"
+    // MARK: - OAuth2 Configuration (loaded from GoogleConfig.plist)
+    private let clientId: String
+    private let clientSecret: String
+    private let redirectUri: String
     private let scope = "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid"
     private let authorizationEndpoint = "https://accounts.google.com/o/oauth2/v2/auth"
     private let tokenEndpoint = "https://oauth2.googleapis.com/token"
@@ -45,32 +35,30 @@ class GoogleAuthManager: ObservableObject {
     private let expirationKey = "com.boringNotch.googleCalendar.expiration"
     private let emailKey = "com.boringNotch.googleCalendar.email"
     
-    // MARK: - Public Configuration Methods
-    
-    /// Check if OAuth credentials are configured
-    var hasCredentials: Bool {
-        !clientId.isEmpty && !clientSecret.isEmpty
-    }
-    
-    /// Configure OAuth credentials (stores in Keychain)
-    func setCredentials(clientId: String, clientSecret: String) {
-        saveToKeychain(key: clientIdKey, value: clientId)
-        saveToKeychain(key: clientSecretKey, value: clientSecret)
-    }
-    
-    /// Clear OAuth credentials
-    func clearCredentials() {
-        deleteFromKeychain(key: clientIdKey)
-        deleteFromKeychain(key: clientSecretKey)
-        signOut()
-    }
-    
     // MARK: - PKCE Properties
     private var codeVerifier: String?
     private var localServer: LocalOAuthServer?
     
     // MARK: - Initialization
     private init() {
+        // Load OAuth config from plist
+        if let configPath = Bundle.main.path(forResource: "GoogleConfig", ofType: "plist"),
+           let config = NSDictionary(contentsOfFile: configPath) as? [String: String] {
+            self.clientId = config["GOOGLE_CLIENT_ID"] ?? ""
+            self.clientSecret = config["GOOGLE_CLIENT_SECRET"] ?? ""
+            self.redirectUri = config["GOOGLE_REDIRECT_URI"] ?? "http://127.0.0.1:8080/oauth/callback"
+            
+            if self.clientId.isEmpty {
+                print("⚠️ Warning: GOOGLE_CLIENT_ID not found in GoogleConfig.plist")
+            }
+        } else {
+            // Fallback - check environment/defaults
+            print("⚠️ Warning: GoogleConfig.plist not found, OAuth will not work")
+            self.clientId = ""
+            self.clientSecret = ""
+            self.redirectUri = "http://127.0.0.1:8080/oauth/callback"
+        }
+        
         loadStoredCredentials()
     }
     

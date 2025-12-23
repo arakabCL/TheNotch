@@ -80,16 +80,16 @@ class GoogleCalendarService: ObservableObject {
         do {
             let accessToken = try await authManager.getValidAccessToken()
             
-            // Get start and end of today
+            // Get start of today and end of tomorrow (48 hours total)
             let calendar = Calendar.current
             let startOfDay = calendar.startOfDay(for: Date())
-            let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay)!
+            let endOfRange = calendar.date(byAdding: .day, value: 2, to: startOfDay)!
             
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime]
             
             let timeMin = formatter.string(from: startOfDay)
-            let timeMax = formatter.string(from: endOfDay)
+            let timeMax = formatter.string(from: endOfRange)
             
             // Fetch events from primary calendar
             var components = URLComponents(string: "\(baseURL)/calendars/primary/events")!

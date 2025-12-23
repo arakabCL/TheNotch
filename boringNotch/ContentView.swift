@@ -294,7 +294,8 @@ struct ContentView: View {
                               .frame(alignment: .center)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
                           BoringFaceAnimation()
-                      } else if Defaults[.useGoogleCalendar] && vm.notchState == .closed && !vm.hideOnClosed {
+                      } else if Defaults[.useGoogleCalendar] && vm.notchState == .closed && !vm.hideOnClosed && (NSScreen.screen(withUUID: vm.screenUUID ?? "")?.safeAreaInsets.top ?? 0) <= 0 {
+                          // Only show CalendarLiveActivity on external displays (without physical notch)
                           CalendarLiveActivity()
                               .frame(alignment: .center)
                        } else if vm.notchState == .open {

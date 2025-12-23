@@ -16,8 +16,8 @@ struct HorizontalTimelineView: View {
     // Timeline configuration
     private let hourWidth: CGFloat = 100
     private let timelineHeight: CGFloat = 100
-    private let startHour: Int = 6  // Start at 6 AM
-    private let endHour: Int = 23   // End at 11 PM
+    private let startHour: Int = 0   // Start at midnight
+    private let endHour: Int = 48    // Show 48 hours (today + tomorrow)
     
     @State private var selectedEvent: EventModel?
     @State private var isShowingDetail = false
@@ -243,10 +243,16 @@ struct HorizontalTimelineView: View {
     // MARK: - Helpers
     
     private func formatHour(_ hour: Int) -> String {
+        let displayHour = hour % 24
         let formatter = DateFormatter()
         formatter.dateFormat = "ha"
-        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
-        return formatter.string(from: date).lowercased()
+        let date = Calendar.current.date(bySettingHour: displayHour, minute: 0, second: 0, of: Date())!
+        let hourString = formatter.string(from: date).lowercased()
+        // Add "+" indicator for next day hours
+        if hour >= 24 {
+            return "+\(hourString)"
+        }
+        return hourString
     }
     
     private func scrollToCurrentTime(proxy: ScrollViewProxy) {
@@ -414,11 +420,20 @@ struct EventBlockView: View {
     private func calculatePosition() -> (x: CGFloat, width: CGFloat) {
         let calendar = Calendar.current
         
-        let startComponents = calendar.dateComponents([.hour, .minute], from: event.start)
-        let _ = calendar.dateComponents([.hour, .minute], from: event.end)
+        // Get today's start of day for reference
+        let today = calendar.startOfDay(for: Date())
+        let eventDay = calendar.startOfDay(for: event.start)
         
-        let startHourOffset = CGFloat(startComponents.hour! - startHour)
-        let startMinuteOffset = CGFloat(startComponents.minute!) / 60.0
+        // Calculate day offset (0 for today, 1 for tomorrow, etc.)
+        let dayOffset = calendar.dateComponents([.day], from: today, to: eventDay).day ?? 0
+        
+        let startComponents = calendar.dateComponents([.hour, .minute], from: event.start)
+        
+        // Add 24 hours for each day offset
+        let adjustedHour = (startComponents.hour ?? 0) + (dayOffset * 24)
+        
+        let startHourOffset = CGFloat(adjustedHour - startHour)
+        let startMinuteOffset = CGFloat(startComponents.minute ?? 0) / 60.0
         let x = (startHourOffset + startMinuteOffset) * hourWidth
         
         let durationHours = event.end.timeIntervalSince(event.start) / 3600.0

@@ -14,10 +14,6 @@ struct GoogleCalendarSettingsView: View {
     @Default(.useGoogleCalendar) var useGoogleCalendar
     @Default(.googleCalendarPollingInterval) var pollingInterval
     
-    @State private var clientId: String = ""
-    @State private var clientSecret: String = ""
-    @State private var showingCredentialsInfo = false
-    
     var body: some View {
         Form {
             Section {
@@ -31,11 +27,7 @@ struct GoogleCalendarSettingsView: View {
             }
             
             if useGoogleCalendar {
-                credentialsSection
-                
-                if authManager.hasCredentials {
-                    signInSection
-                }
+                signInSection
                 
                 if authManager.isSignedIn {
                     calendarOptionsSection
@@ -43,57 +35,6 @@ struct GoogleCalendarSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear {
-            loadCredentials()
-        }
-    }
-    
-    private func loadCredentials() {
-        // Load existing credentials for display (masked)
-        if authManager.hasCredentials {
-            clientId = "••••••••••" // Masked for security
-            clientSecret = "••••••••••"
-        }
-    }
-    
-    private var credentialsSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 8) {
-                TextField("Client ID", text: $clientId)
-                    .textFieldStyle(.roundedBorder)
-                
-                SecureField("Client Secret", text: $clientSecret)
-                    .textFieldStyle(.roundedBorder)
-                
-                HStack {
-                    Button(authManager.hasCredentials ? "Update Credentials" : "Save Credentials") {
-                        if !clientId.contains("•") && !clientSecret.contains("•") {
-                            authManager.setCredentials(clientId: clientId, clientSecret: clientSecret)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(clientId.isEmpty || clientSecret.isEmpty || clientId.contains("•") || clientSecret.contains("•"))
-                    
-                    if authManager.hasCredentials {
-                        Button("Clear", role: .destructive) {
-                            authManager.clearCredentials()
-                            clientId = ""
-                            clientSecret = ""
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        } header: {
-            Text("OAuth Credentials")
-        } footer: {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Create credentials at Google Cloud Console:")
-                Link("console.cloud.google.com", destination: URL(string: "https://console.cloud.google.com/apis/credentials")!)
-                    .font(.caption)
-            }
-        }
     }
     
     private var signInSection: some View {
