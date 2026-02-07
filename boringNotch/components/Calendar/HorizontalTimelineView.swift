@@ -322,6 +322,8 @@ struct EventBlockView: View {
         Color(nsColor: event.calendar.color)
     }
     
+    @State private var isHoveringResizeHandle = false
+
     var body: some View {
         let position = calculatePosition()
         // width + resize adjustment
@@ -366,7 +368,8 @@ struct EventBlockView: View {
         .gesture(
             DragGesture(minimumDistance: 5)
                 .onChanged { value in
-                    guard !isRescheduling && !isResizing else { return }
+                    // STRICT CHECK: Cannot move if resizing OR over resize handle
+                    guard !isRescheduling && !isResizing && !isHoveringResizeHandle else { return }
                     
                     if !isDragging {
                         isDragging = true
@@ -457,6 +460,9 @@ struct EventBlockView: View {
                     .shadow(radius: 1)
             )
             .contentShape(Rectangle())
+            .onHover { hovering in
+                isHoveringResizeHandle = hovering
+            }
             .highPriorityGesture(
                 DragGesture(minimumDistance: 3)
                     .onChanged { value in
