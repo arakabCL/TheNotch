@@ -158,30 +158,13 @@ struct HorizontalTimelineView: View {
                             print("❌ Failed to reschedule event: \(error)")
                         }
                     },
-                    onResize: { event, newSteps in
-                        print("📅 Resizing \(event.title) by \(newSteps) steps")
+                    onResizeDuration: { event, newEndTime in
+                        print("📅 Resizing \(event.title) to end at \(newEndTime)")
                         do {
-                            // Calculate new end time based on 15 minute steps
-                            // each step is 15 minutes = 900 seconds
-                            let durationChange = TimeInterval(newSteps * 15 * 60)
-                            let newEnd = event.end.addingTimeInterval(durationChange)
-                            
-                            // Ensure duration is at least 15 minutes
-                            guard newEnd.timeIntervalSince(event.start) >= 15 * 60 else { return }
-                            
-                            try await calendarService.updateEvent(
-                                id: event.id,
-                                summary: event.title,
-                                description: event.notes,
-                                location: event.location,
-                                start: event.start,
-                                end: newEnd,
-                                attendees: event.participants.compactMap { $0.email },
-                                colorId: event.colorId
-                            )
-                            print("✅ Event resized successfully")
+                            try await calendarService.resizeEventDuration(event, to: newEndTime)
+                            print("✅ Event duration updated successfully")
                         } catch {
-                            print("❌ Failed to resize event: \(error)")
+                            print("❌ Failed to resize event duration: \(error)")
                         }
                     }
                 )
@@ -302,120 +285,113 @@ struct EventBlockView: View {
     let hourWidth: CGFloat
     let onTap: () -> Void
     var onReschedule: ((EventModel, Date) async -> Void)?
-    var onResize: ((EventModel, Int) async -> Void)?
+    var onResizeDuration: ((EventModel, Date) async -> Void)?
     
     @State private var isHovering = false
-    @State private var dragOffset: CGFloat = 0
-    @State private var isDragging = false
-    @State private var previewTime: Date?
+    @State private var isHoveringResizeHandle = false
+    @State private var isNearResizeEdge = false
+    @State private var moveDragOffset: CGFloat = 0
+    @State private var resizeDragOffset: CGFloat = 0
+    @State private var resizeDragStartOffset: CGFloat = 0
+    @State private var previewStartTime: Date?
+    @State private var previewEndTime: Date?
     @State private var isRescheduling = false
     
-    // Resizing state
-    @State private var isResizing = false
-    @State private var resizeOffset: CGFloat = 0
-    @State private var resizeSteps: Int = 0 // 1 step = 15 mins
+    private enum InteractionMode {
+        case none
+        case moving
+        case resizingEnd
+    }
+    
+    @State private var interactionMode: InteractionMode = .none
     
     // 15-minute increment in pixels (hourWidth / 4)
     private var snapIncrement: CGFloat { hourWidth / 4.0 }
+    private var resizeSnapIncrement: CGFloat { hourWidth / 6.0 } // 10-minute steps
+    private let resizeHandleWidth: CGFloat = 6
+    private let resizeHandleHitWidth: CGFloat = 14
+    private let resizeRevealDistance: CGFloat = 8
+    private let minimumDuration: TimeInterval = 15 * 60
     
     private var eventColor: Color {
         Color(nsColor: event.calendar.color)
     }
     
-    @State private var isHoveringResizeHandle = false
-
+    private var isMoving: Bool { interactionMode == .moving }
+    private var isResizingDuration: Bool { interactionMode == .resizingEnd }
+    private var isInteracting: Bool { interactionMode != .none }
+    
     var body: some View {
         let position = calculatePosition()
-        // width + resize adjustment
-        let currentWidth = max(20, position.width + (isResizing ? resizeOffset : 0))
+        let baseWidth = max(20, position.width)
+        let activeWidth = max(snapIncrement, baseWidth + (isResizingDuration ? resizeDragOffset : 0))
+        let activeOffset = isMoving ? moveDragOffset : 0
         
-        ZStack(alignment: .top) {
+        ZStack(alignment: .topLeading) {
             // Main event block
-            eventBlock(width: currentWidth)
-                .frame(width: currentWidth, height: 50)
-                .offset(x: isDragging ? dragOffset : 0)
-                .opacity(isDragging ? 0.85 : 1.0)
-                .scaleEffect(isDragging ? 1.02 : 1.0)
-                .animation(.easeOut(duration: 0.15), value: isDragging)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: resizeOffset)
+            eventBlock
+                .frame(width: activeWidth, height: 50)
+                .offset(x: activeOffset)
+                .opacity(isInteracting ? 0.9 : 1.0)
+                .scaleEffect(isInteracting ? 1.02 : 1.0)
+                .animation(.easeOut(duration: 0.12), value: isInteracting)
+                .onContinuousHover(coordinateSpace: .local) { phase in
+                    switch phase {
+                    case .active(let location):
+                        isHovering = true
+                        isNearResizeEdge = location.x >= max(0, activeWidth - resizeRevealDistance)
+                    case .ended:
+                        isHovering = false
+                        if !isResizingDuration {
+                            isNearResizeEdge = false
+                        }
+                    }
+                }
+                .gesture(moveGesture)
+                .overlay(alignment: .trailing) {
+                    if onResizeDuration != nil {
+                        resizeHandle(
+                            baseWidth: baseWidth,
+                            showIndicator: isResizingDuration || isNearResizeEdge || isHoveringResizeHandle
+                        )
+                    }
+                }
             
-            // Time preview badge (shows during drag)
-            if isDragging, let preview = previewTime {
-                timePreviewBadge(for: preview)
-                    .offset(x: dragOffset, y: -18)
-                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
-            } 
-            // Duration preview (shows during resize)
-            else if isResizing {
-                durationPreviewBadge(currentWidth: currentWidth)
-                    .offset(x: currentWidth / 2, y: -18)
+            if isMoving, let preview = previewStartTime {
+                timePreviewBadge(formatTime(preview))
+                    .offset(x: activeOffset, y: -18)
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
             
-            // Rescheduling / Resizing indicator
+            if isResizingDuration, let preview = previewEndTime {
+                timePreviewBadge("Ends \(formatTime(preview))")
+                    .offset(x: activeWidth / 2, y: -18)
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+            }
+            
+            // Rescheduling indicator
             if isRescheduling {
                 ProgressView()
                     .scaleEffect(0.5)
-                    .offset(x: position.width / 2, y: 25)
+                    .offset(x: activeOffset + activeWidth / 2, y: 25)
             }
         }
-        // Only the view itself handles taps; the background is transparent
+        .contentShape(Rectangle())
         .onTapGesture {
-            if !isDragging && !isRescheduling && !isResizing {
+            if !isInteracting && !isRescheduling {
                 onTap()
             }
         }
-        .gesture(
-            DragGesture(minimumDistance: 5)
-                .onChanged { value in
-                    // STRICT CHECK: Cannot move if resizing OR over resize handle
-                    guard !isRescheduling && !isResizing && !isHoveringResizeHandle else { return }
-                    
-                    if !isDragging {
-                        isDragging = true
-                        SharingStateManager.shared.preventNotchClose = true
-                    }
-                    
-                    // Snap to 15-minute increments
-                    let snappedOffset = round(value.translation.width / snapIncrement) * snapIncrement
-                    dragOffset = snappedOffset
-                    
-                    // Calculate preview time
-                    previewTime = calculateNewStartTime(from: snappedOffset)
-                }
-                .onEnded { value in
-                    guard isDragging else { return }
-                    
-                    let snappedOffset = round(value.translation.width / snapIncrement) * snapIncrement
-                    
-                    // Only save if there's a meaningful change (at least 15 minutes)
-                    if abs(snappedOffset) >= snapIncrement, let newTime = calculateNewStartTime(from: snappedOffset) {
-                        commitReschedule(to: newTime)
-                    } else {
-                        cancelDrag()
-                    }
-                }
-        )
-        // Separate resize capability
-        .overlay(
-            resizeHandle
-                .offset(x: (currentWidth / 2) - 4 + (isDragging ? dragOffset : 0))
-                .opacity((isHovering || isResizing) && !isDragging && !isRescheduling ? 1 : 0),
-            alignment: .center // We center it, but calculate manual x offset
-        )
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .offset(x: position.x + (isResizing ? resizeOffset / 2 : 0), y: 20)
+        .offset(x: position.x, y: 20)
     }
     
-    private func eventBlock(width: CGFloat) -> some View {
+    private var eventBlock: some View {
         ZStack(alignment: .leading) {
             RoundedRectangle(cornerRadius: 4)
-                .fill(eventColor.opacity(isHovering || isDragging || isResizing ? 0.9 : 0.7))
+                .fill(eventColor.opacity(isHovering || isInteracting ? 0.9 : 0.7))
             
             RoundedRectangle(cornerRadius: 4)
-                .strokeBorder(isDragging || isResizing ? Color.white : eventColor, lineWidth: isDragging || isResizing ? 2 : 1)
+                .strokeBorder(isInteracting ? Color.white : eventColor, lineWidth: isInteracting ? 2 : 1)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title)
@@ -423,16 +399,12 @@ struct EventBlockView: View {
                     .foregroundColor(.white)
                     .lineLimit(1)
                 
-                // Show preview time during drag, otherwise show original time
-                if isDragging, let preview = previewTime {
+                if isMoving, let preview = previewStartTime {
                     Text(formatTime(preview))
                         .font(.system(size: 8, weight: .semibold))
                         .foregroundColor(.yellow)
-                } else if isResizing {
-                    // Show updated duration/end time
-                    let durationChange = TimeInterval(resizeSteps * 15 * 60)
-                    let newEnd = event.end.addingTimeInterval(durationChange)
-                    Text("\(formatTime(event.start)) - \(formatTime(newEnd))")
+                } else if isResizingDuration, let preview = previewEndTime {
+                    Text("Ends \(formatTime(preview))")
                         .font(.system(size: 8, weight: .semibold))
                         .foregroundColor(.yellow)
                 } else {
@@ -443,85 +415,36 @@ struct EventBlockView: View {
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
-            .frame(width: width, alignment: .leading)
         }
         .help(eventTooltip)
     }
     
-    private var resizeHandle: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.01)) // specific hit area
-            .frame(width: 14, height: 40)
-            .overlay(
-                // Visual handle
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(Color.white.opacity(0.8))
-                    .frame(width: 4, height: 24)
-                    .shadow(radius: 1)
-            )
-            .contentShape(Rectangle())
-            .onHover { hovering in
+    private func resizeHandle(baseWidth: CGFloat, showIndicator: Bool) -> some View {
+        ZStack {
+            Color.clear
+                .frame(width: resizeHandleHitWidth, height: 50)
+            
+            RoundedRectangle(cornerRadius: 2)
+                .fill(isResizingDuration ? Color.yellow : Color.white.opacity(isHovering || isHoveringResizeHandle ? 0.95 : 0.7))
+                .frame(width: resizeHandleWidth, height: 30)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(Color.black.opacity(0.25), lineWidth: 0.5)
+                )
+                .opacity(showIndicator ? 1 : 0)
+        }
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            if !isResizingDuration {
                 isHoveringResizeHandle = hovering
             }
-            .highPriorityGesture(
-                DragGesture(minimumDistance: 3)
-                    .onChanged { value in
-                        if !isResizing {
-                            isResizing = true
-                            SharingStateManager.shared.preventNotchClose = true
-                        }
-                        
-                        // Calculate steps (15 mins) from drag
-                        // Since we are dragging the right edge, translation directly maps to width change
-                        let rawSteps = round(value.translation.width / snapIncrement)
-                        resizeSteps = Int(rawSteps)
-                        
-                        // Don't allow duration less than 15 mins
-                        let currentDurationSteps = Int(event.end.timeIntervalSince(event.start) / (15 * 60))
-                        if currentDurationSteps + resizeSteps < 1 {
-                            resizeSteps = 1 - currentDurationSteps
-                        }
-                        
-                        resizeOffset = CGFloat(resizeSteps) * snapIncrement
-                    }
-                    .onEnded { value in
-                        guard isResizing else { return }
-                        
-                        if resizeSteps != 0 {
-                            commitResize()
-                        } else {
-                            cancelResize()
-                        }
-                    }
-            )
-            // .cursor(.resizeRight) - Removed as it caused build error
+        }
+        .highPriorityGesture(resizeGesture(baseWidth: baseWidth))
+        .help("Drag to adjust event duration")
     }
     
-    private func timePreviewBadge(for time: Date) -> some View {
-        Text(formatTime(time))
-            .font(.system(size: 9, weight: .bold))
-            .foregroundColor(.black)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                Capsule()
-                    .fill(Color.yellow)
-                    .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
-            )
-    }
-    
-    private func durationPreviewBadge(currentWidth: CGFloat) -> some View {
-        let durationChange = TimeInterval(resizeSteps * 15 * 60)
-        let newEnd = event.end.addingTimeInterval(durationChange)
-        let totalDurationMinutes = Int(newEnd.timeIntervalSince(event.start) / 60)
-        let hours = totalDurationMinutes / 60
-        let minutes = totalDurationMinutes % 60
-        
-        var durationText = ""
-        if hours > 0 { durationText += "\(hours)h " }
-        if minutes > 0 { durationText += "\(minutes)m" }
-        
-        return Text("\(durationText) (\(formatTime(newEnd)))")
+    private func timePreviewBadge(_ text: String) -> some View {
+        Text(text)
             .font(.system(size: 9, weight: .bold))
             .foregroundColor(.black)
             .padding(.horizontal, 6)
@@ -540,7 +463,10 @@ struct EventBlockView: View {
             tooltip += "\n📍 \(location)"
         }
         if onReschedule != nil {
-            tooltip += "\n\nDrag to reschedule\nDrag right edge to resize"
+            tooltip += "\n\nDrag event body to move start time"
+        }
+        if onResizeDuration != nil {
+            tooltip += "\nDrag the right tab to resize duration"
         }
         return tooltip
     }
@@ -584,6 +510,20 @@ struct EventBlockView: View {
         return snapToFifteenMinutes(newStart)
     }
     
+    private func calculateNewEndTime(from offset: CGFloat) -> Date? {
+        let hoursOffset = offset / hourWidth
+        let secondsOffset = hoursOffset * 3600
+        let newEnd = event.end.addingTimeInterval(secondsOffset)
+        let minimumEnd = event.start.addingTimeInterval(minimumDuration)
+        
+        return max(newEnd, minimumEnd)
+    }
+    
+    private func minimumResizeOffset(for baseWidth: CGFloat) -> CGFloat {
+        // Keep at least one 15-minute step visible.
+        snapIncrement - baseWidth
+    }
+    
     private func snapToFifteenMinutes(_ date: Date) -> Date {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
@@ -602,63 +542,133 @@ struct EventBlockView: View {
     
     // MARK: - Actions
     
+    private var moveGesture: some Gesture {
+        DragGesture(minimumDistance: 5)
+            .onChanged { value in
+                guard !isRescheduling && !isHoveringResizeHandle && !isNearResizeEdge && interactionMode != .resizingEnd else { return }
+                
+                if interactionMode == .none {
+                    beginInteraction(.moving)
+                }
+                
+                guard isMoving else { return }
+                
+                let snappedOffset = round(value.translation.width / snapIncrement) * snapIncrement
+                moveDragOffset = snappedOffset
+                previewStartTime = calculateNewStartTime(from: snappedOffset)
+            }
+            .onEnded { _ in
+                guard isMoving else { return }
+                
+                if let newTime = calculateNewStartTime(from: moveDragOffset),
+                   abs(newTime.timeIntervalSince(event.start)) >= 60 {
+                    commitReschedule(to: newTime)
+                } else {
+                    resetInteractionState(animated: true)
+                }
+            }
+    }
+    
+    private func resizeGesture(baseWidth: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 2, coordinateSpace: .global)
+            .onChanged { value in
+                guard !isRescheduling else { return }
+                
+                if interactionMode == .none {
+                    beginInteraction(.resizingEnd)
+                    resizeDragStartOffset = resizeDragOffset
+                }
+                
+                guard isResizingDuration else { return }
+                
+                let deltaX = value.location.x - value.startLocation.x
+                let rawOffset = resizeDragStartOffset + deltaX
+                let minimumOffset = minimumResizeOffset(for: baseWidth)
+                let snappedOffset = quantizedResizeOffset(rawOffset)
+                resizeDragOffset = max(minimumOffset, snappedOffset)
+                previewEndTime = calculateNewEndTime(from: resizeDragOffset)
+            }
+            .onEnded { _ in
+                guard isResizingDuration else { return }
+                
+                if let newEnd = calculateNewEndTime(from: resizeDragOffset),
+                   abs(newEnd.timeIntervalSince(event.end)) >= 60 {
+                    commitResize(to: newEnd)
+                } else {
+                    resetInteractionState(animated: true)
+                }
+            }
+    }
+    
+    private func quantizedResizeOffset(_ rawOffset: CGFloat) -> CGFloat {
+        // Directional quantization avoids midpoint flip-flop jitter around step boundaries.
+        if rawOffset >= 0 {
+            return floor(rawOffset / resizeSnapIncrement) * resizeSnapIncrement
+        }
+        return ceil(rawOffset / resizeSnapIncrement) * resizeSnapIncrement
+    }
+    
+    private func beginInteraction(_ mode: InteractionMode) {
+        guard interactionMode == .none else { return }
+        interactionMode = mode
+        SharingStateManager.shared.preventNotchClose = true
+    }
+    
     private func commitReschedule(to newTime: Date) {
         guard let onReschedule = onReschedule else {
-            cancelDrag()
+            resetInteractionState(animated: true)
             return
         }
         
+        performTimedUpdate {
+            await onReschedule(event, newTime)
+        }
+    }
+    
+    private func commitResize(to newEnd: Date) {
+        guard let onResizeDuration = onResizeDuration else {
+            resetInteractionState(animated: true)
+            return
+        }
+        
+        performTimedUpdate {
+            await onResizeDuration(event, newEnd)
+        }
+    }
+    
+    private func performTimedUpdate(_ operation: @escaping () async -> Void) {
         isRescheduling = true
         
         Task {
-            await onReschedule(event, newTime)
+            await operation()
             
             await MainActor.run {
                 isRescheduling = false
-                isDragging = false
-                dragOffset = 0
-                previewTime = nil
-                SharingStateManager.shared.preventNotchClose = false
+                resetInteractionState(animated: false)
             }
         }
     }
     
-    private func cancelDrag() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            dragOffset = 0
-        }
-        isDragging = false
-        previewTime = nil
-        SharingStateManager.shared.preventNotchClose = false
-    }
-    
-    private func commitResize() {
-        guard let onResize = onResize else {
-            cancelResize()
-            return
+    private func resetInteractionState(animated: Bool) {
+        let reset = {
+            moveDragOffset = 0
+            resizeDragOffset = 0
         }
         
-        isRescheduling = true // Re-use this flag for spinner
-        
-        Task {
-            await onResize(event, resizeSteps)
-            
-            await MainActor.run {
-                isRescheduling = false
-                isResizing = false
-                resizeOffset = 0
-                resizeSteps = 0
-                SharingStateManager.shared.preventNotchClose = false
+        if animated {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                reset()
             }
+        } else {
+            reset()
         }
-    }
-    
-    private func cancelResize() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            resizeOffset = 0
-        }
-        isResizing = false
-        resizeSteps = 0
+        
+        interactionMode = .none
+        previewStartTime = nil
+        previewEndTime = nil
+        resizeDragStartOffset = 0
+        isHoveringResizeHandle = false
+        isNearResizeEdge = false
         SharingStateManager.shared.preventNotchClose = false
     }
     

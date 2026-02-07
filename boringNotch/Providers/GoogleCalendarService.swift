@@ -217,6 +217,22 @@ class GoogleCalendarService: ObservableObject {
             attendees: event.participants.compactMap { $0.email }
         )
     }
+    
+    /// Resize an event by changing its end time (preserving start time)
+    func resizeEventDuration(_ event: EventModel, to newEnd: Date) async throws {
+        let minimumEnd = event.start.addingTimeInterval(15 * 60)
+        let clampedEnd = max(newEnd, minimumEnd)
+        
+        try await updateEvent(
+            id: event.id,
+            summary: event.title,
+            description: event.notes,
+            location: event.location,
+            start: event.start,
+            end: clampedEnd,
+            attendees: event.participants.compactMap { $0.email }
+        )
+    }
 }
 
 // MARK: - Google Calendar API Models
@@ -399,4 +415,3 @@ extension AttendanceStatus {
         }
     }
 }
-

@@ -701,26 +701,6 @@
         }
       }
     },
-    "%@ - %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ - %2$@"
-          }
-        }
-      }
-    },
-    "%@ (%@)" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ (%2$@)"
-          }
-        }
-      }
-    },
     "%d%%" : {
       "localizations" : {
         "ar" : {
@@ -7867,6 +7847,9 @@
         }
       }
     },
+    "Drag to adjust event duration" : {
+
+    },
     "Drop files here" : {
       "localizations" : {
         "ar" : {
@@ -8975,6 +8958,9 @@
       }
     },
     "Ends" : {
+
+    },
+    "Ends %@" : {
 
     },
     "Enhance your experience with HUDs" : {
