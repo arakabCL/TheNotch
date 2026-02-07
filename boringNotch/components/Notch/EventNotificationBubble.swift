@@ -28,22 +28,22 @@ struct EventNotificationBubbleView: View {
             Circle()
                 .fill(Color(nsColor: event.calendar.color))
                 .frame(width: 10, height: 10)
-                .shadow(color: Color(nsColor: event.calendar.color).opacity(0.6), radius: 4)
+                .shadow(color: Color(nsColor: event.calendar.color).opacity(0.4), radius: 3)
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                     .lineLimit(1)
                 
                 HStack(spacing: 4) {
                     Image(systemName: isStartingNow ? "bell.fill" : "clock")
                         .font(.system(size: 10))
-                        .foregroundColor(isStartingNow ? .orange : .gray)
+                        .foregroundColor(isStartingNow ? .orange : .secondary)
                     
                     Text(isStartingNow ? "Starting now!" : "In \(timeUntilStart)")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(isStartingNow ? .orange : .gray)
+                        .foregroundColor(isStartingNow ? .orange : .secondary)
                 }
             }
             
@@ -53,16 +53,16 @@ struct EventNotificationBubbleView: View {
             if !isStartingNow {
                 Text(formatEventTime(event.start))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundColor(.white.opacity(0.7))
+                    .foregroundColor(.secondary)
             }
             
             // Confirm button (satisfying checkbox)
             Button(action: confirmAndDismiss) {
                 ZStack {
-                    // Pulsing background
+                    // Pulsing background glow
                     Circle()
-                        .fill(Color(nsColor: event.calendar.color).opacity(pulseOpacity))
-                        .frame(width: 36, height: 36)
+                        .fill(Color(nsColor: event.calendar.color).opacity(pulseOpacity * 0.5))
+                        .frame(width: 38, height: 38)
                         .scaleEffect(isConfirmed ? 1.5 : 1.0)
                         .opacity(isConfirmed ? 0 : 1)
                     
@@ -71,7 +71,7 @@ struct EventNotificationBubbleView: View {
                         .fill(
                             isConfirmed 
                                 ? Color.green
-                                : Color.white.opacity(0.15)
+                                : Color(nsColor: event.calendar.color).opacity(0.15)
                         )
                         .frame(width: 32, height: 32)
                         .overlay(
@@ -79,15 +79,15 @@ struct EventNotificationBubbleView: View {
                                 .strokeBorder(
                                     isConfirmed 
                                         ? Color.green 
-                                        : Color.white.opacity(0.3),
+                                        : Color(nsColor: event.calendar.color).opacity(0.6),
                                     lineWidth: 2
                                 )
                         )
                     
                     // Checkmark
-                    Image(systemName: isConfirmed ? "checkmark" : "checkmark")
+                    Image(systemName: "checkmark")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(isConfirmed ? .white : .white.opacity(0.5))
+                        .foregroundColor(isConfirmed ? .white : Color(nsColor: event.calendar.color))
                         .scaleEffect(checkScale)
                 }
             }
@@ -102,40 +102,28 @@ struct EventNotificationBubbleView: View {
         .frame(minWidth: 240, maxWidth: 360)
         .background(
             ZStack {
-                // Glassmorphism background
+                // Light translucent background
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
+                    .environment(\.colorScheme, .light)
                 
-                // Gradient overlay
+                // Subtle white overlay for lightness
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(nsColor: event.calendar.color).opacity(0.15),
-                                Color.black.opacity(0.3)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(Color.white.opacity(0.3))
                 
-                // Border glow
+                // Subtle color tint from event
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color(nsColor: event.calendar.color).opacity(0.05))
+                
+                // Light border
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(
-                        LinearGradient(
-                            colors: [
-                                Color(nsColor: event.calendar.color).opacity(0.5),
-                                Color.white.opacity(0.1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
+                        Color.white.opacity(0.5),
+                        lineWidth: 0.5
                     )
             }
         )
-        .shadow(color: Color.black.opacity(0.3), radius: 20, y: 10)
-        .shadow(color: Color(nsColor: event.calendar.color).opacity(0.2), radius: 10)
+        .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
         .scaleEffect(isVisible ? 1.0 : 0.5)
         .opacity(isVisible ? 1.0 : 0.0)
         .offset(y: isVisible ? 0 : -20)
