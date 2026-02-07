@@ -18,7 +18,9 @@ struct EventNotificationBubbleView: View {
     let onDismiss: () -> Void
     
     @State private var isVisible: Bool = false
-    @State private var isAppearing: Bool = true
+    @State private var isConfirmed: Bool = false
+    @State private var checkScale: CGFloat = 1.0
+    @State private var pulseOpacity: Double = 0.3
     
     var body: some View {
         HStack(spacing: 12) {
@@ -45,7 +47,7 @@ struct EventNotificationBubbleView: View {
                 }
             }
             
-            Spacer(minLength: 0)
+            Spacer(minLength: 8)
             
             // Time display
             if !isStartingNow {
@@ -53,10 +55,51 @@ struct EventNotificationBubbleView: View {
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
                     .foregroundColor(.white.opacity(0.7))
             }
+            
+            // Confirm button (satisfying checkbox)
+            Button(action: confirmAndDismiss) {
+                ZStack {
+                    // Pulsing background
+                    Circle()
+                        .fill(Color(nsColor: event.calendar.color).opacity(pulseOpacity))
+                        .frame(width: 36, height: 36)
+                        .scaleEffect(isConfirmed ? 1.5 : 1.0)
+                        .opacity(isConfirmed ? 0 : 1)
+                    
+                    // Button circle
+                    Circle()
+                        .fill(
+                            isConfirmed 
+                                ? Color.green
+                                : Color.white.opacity(0.15)
+                        )
+                        .frame(width: 32, height: 32)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    isConfirmed 
+                                        ? Color.green 
+                                        : Color.white.opacity(0.3),
+                                    lineWidth: 2
+                                )
+                        )
+                    
+                    // Checkmark
+                    Image(systemName: isConfirmed ? "checkmark" : "checkmark")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(isConfirmed ? .white : .white.opacity(0.5))
+                        .scaleEffect(checkScale)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            .scaleEffect(checkScale)
+            .animation(.spring(response: 0.3, dampingFraction: 0.5), value: checkScale)
+            .animation(.easeInOut(duration: 0.2), value: isConfirmed)
+            .help("Got it!")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .frame(minWidth: 200, maxWidth: 320)
+        .frame(minWidth: 240, maxWidth: 360)
         .background(
             ZStack {
                 // Glassmorphism background
@@ -100,6 +143,38 @@ struct EventNotificationBubbleView: View {
             withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
                 isVisible = true
             }
+            // Start subtle pulse animation
+            startPulseAnimation()
+        }
+    }
+    
+    private func confirmAndDismiss() {
+        // Satisfying animation sequence
+        withAnimation(.spring(response: 0.2, dampingFraction: 0.4)) {
+            checkScale = 1.3
+            isConfirmed = true
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.6)) {
+                checkScale = 1.0
+            }
+        }
+        
+        // Dismiss after animation completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            withAnimation(.easeOut(duration: 0.3)) {
+                isVisible = false
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                onDismiss()
+            }
+        }
+    }
+    
+    private func startPulseAnimation() {
+        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+            pulseOpacity = 0.6
         }
     }
     
@@ -113,12 +188,14 @@ struct EventNotificationBubbleView: View {
 // MARK: - Event Notification Window
 
 class EventNotificationWindow: NSPanel {
-    private var dismissTask: Task<Void, Never>?
     private var hostingView: NSHostingView<AnyView>?
+    let targetScreen: NSScreen
     
-    init() {
+    init(screen: NSScreen) {
+        self.targetScreen = screen
+        
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 60),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 70),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -140,35 +217,35 @@ class EventNotificationWindow: NSPanel {
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         
-        // Position below notch area
-        if let screen = NSScreen.main {
-            let notchCenterX = screen.frame.midX
-            let notchBottomY = screen.frame.maxY - 50 // Below the notch
-            
-            setFrame(
-                NSRect(
-                    x: notchCenterX - 160,
-                    y: notchBottomY - 70,
-                    width: 320,
-                    height: 60
-                ),
-                display: false
-            )
-        }
+        // Position below notch area for this screen
+        positionBelowNotch()
+    }
+    
+    private func positionBelowNotch() {
+        let notchCenterX = targetScreen.frame.midX
+        let notchBottomY = targetScreen.frame.maxY - 40
+        
+        setFrame(
+            NSRect(
+                x: notchCenterX - 180,
+                y: notchBottomY - 85,
+                width: 360,
+                height: 70
+            ),
+            display: false
+        )
     }
     
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
     
-    func show(event: EventModel, timeUntilStart: String, isStartingNow: Bool, duration: TimeInterval = 5.0) {
-        dismissTask?.cancel()
-        
+    func show(event: EventModel, timeUntilStart: String, isStartingNow: Bool, onDismissAll: @escaping () -> Void) {
         let bubbleView = EventNotificationBubbleView(
             event: event,
             timeUntilStart: timeUntilStart,
             isStartingNow: isStartingNow,
             onDismiss: { [weak self] in
-                self?.dismiss()
+                onDismissAll()
             }
         )
         
@@ -180,21 +257,8 @@ class EventNotificationWindow: NSPanel {
         contentView?.addSubview(hostingView)
         self.hostingView = hostingView
         
-        // Position centered below notch
-        if let screen = NSScreen.main {
-            let notchCenterX = screen.frame.midX
-            let notchBottomY = screen.frame.maxY - 40
-            
-            setFrame(
-                NSRect(
-                    x: notchCenterX - 160,
-                    y: notchBottomY - 80,
-                    width: 320,
-                    height: 70
-                ),
-                display: true
-            )
-        }
+        // Reposition in case screen layout changed
+        positionBelowNotch()
         
         alphaValue = 0
         orderFrontRegardless()
@@ -205,17 +269,9 @@ class EventNotificationWindow: NSPanel {
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             self.animator().alphaValue = 1
         }
-        
-        // Schedule dismiss
-        dismissTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-            self.dismiss()
-        }
     }
     
     func dismiss() {
-        dismissTask?.cancel()
-        
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.3
             context.timingFunction = CAMediaTimingFunction(name: .easeIn)
@@ -232,24 +288,43 @@ class EventNotificationWindow: NSPanel {
 class EventNotificationBubbleManager {
     static let shared = EventNotificationBubbleManager()
     
-    private var window: EventNotificationWindow?
+    private var windows: [NSScreen: EventNotificationWindow] = [:]
+    private var currentEventId: String?
     
     private init() {}
     
-    func showNotification(for event: EventModel, timeUntilStart: String, isStartingNow: Bool, duration: TimeInterval = 5.0) {
-        if window == nil {
-            window = EventNotificationWindow()
-        }
+    func showNotification(for event: EventModel, timeUntilStart: String, isStartingNow: Bool) {
+        // Dismiss any existing notification first
+        dismissAll()
         
-        window?.show(
-            event: event,
-            timeUntilStart: timeUntilStart,
-            isStartingNow: isStartingNow,
-            duration: duration
-        )
+        currentEventId = event.id
+        
+        // Create a window for each connected screen
+        for screen in NSScreen.screens {
+            let window = EventNotificationWindow(screen: screen)
+            windows[screen] = window
+            
+            window.show(
+                event: event,
+                timeUntilStart: timeUntilStart,
+                isStartingNow: isStartingNow,
+                onDismissAll: { [weak self] in
+                    self?.dismissAll()
+                }
+            )
+        }
     }
     
-    func dismiss() {
-        window?.dismiss()
+    func dismissAll() {
+        for (_, window) in windows {
+            window.dismiss()
+        }
+        windows.removeAll()
+        currentEventId = nil
+    }
+    
+    func isShowingNotification(for eventId: String) -> Bool {
+        return currentEventId == eventId
     }
 }
+

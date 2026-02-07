@@ -10,6 +10,25 @@ import Combine
 import Defaults
 import UserNotifications
 
+// Notification timing stages
+private enum NotificationStage: String, CaseIterable {
+    case earlyWarning = "25min"    // 25 minutes before
+    case fiveMinutes = "5min"      // 5 minutes before
+    case starting = "now"          // At event start
+    
+    var timeThreshold: TimeInterval {
+        switch self {
+        case .earlyWarning: return 25 * 60  // 25 minutes
+        case .fiveMinutes: return 5 * 60    // 5 minutes
+        case .starting: return 30           // 30 seconds (to account for timing)
+        }
+    }
+    
+    var isStartingNow: Bool {
+        return self == .starting
+    }
+}
+
 @MainActor
 class EventNotificationManager: ObservableObject {
     static let shared = EventNotificationManager()
@@ -18,12 +37,10 @@ class EventNotificationManager: ObservableObject {
     @Published var showingNotification: Bool = false
     
     private var monitoringTask: Task<Void, Never>?
-    private var notifiedEventIds: Set<String> = []
     
-    // Computed property to get lead time from settings
-    private var notificationLeadTime: TimeInterval {
-        Defaults[.calendarNotificationLeadTime]
-    }
+    // Track which events have been notified at each stage
+    // Key format: "eventId-stage"
+    private var notifiedStages: Set<String> = []
     
     private init() {
         requestNotificationPermission()
@@ -47,7 +64,7 @@ class EventNotificationManager: ObservableObject {
         monitoringTask = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.checkForUpcomingEvents()
-                try? await Task.sleep(nanoseconds: 30 * 1_000_000_000) // Check every 30 seconds
+                try? await Task.sleep(nanoseconds: 15 * 1_000_000_000) // Check every 15 seconds
             }
         }
     }
@@ -65,83 +82,78 @@ class EventNotificationManager: ObservableObject {
         let now = Date()
         
         for event in events {
-            // Skip all-day events and already notified events
+            // Skip all-day events
             guard !event.isAllDay else { continue }
-            guard !notifiedEventIds.contains(event.id) else { continue }
             
             let timeUntilStart = event.start.timeIntervalSince(now)
             
-            // Notify if event is starting within the lead time
-            if timeUntilStart > 0 && timeUntilStart <= notificationLeadTime {
-                await showEventNotification(event)
-                notifiedEventIds.insert(event.id)
-            }
-            // Also notify when event is exactly starting (within a 30-second window)
-            else if timeUntilStart <= 0 && timeUntilStart > -30 {
-                await showEventStartingNow(event)
-                notifiedEventIds.insert(event.id)
+            // Check each notification stage
+            for stage in NotificationStage.allCases {
+                let stageKey = "\(event.id)-\(stage.rawValue)"
+                
+                // Skip if already notified for this stage
+                guard !notifiedStages.contains(stageKey) else { continue }
+                
+                let shouldNotify: Bool
+                switch stage {
+                case .earlyWarning:
+                    // Notify when within 25 minutes but more than 5 minutes away
+                    shouldNotify = timeUntilStart > 0 
+                        && timeUntilStart <= stage.timeThreshold 
+                        && timeUntilStart > NotificationStage.fiveMinutes.timeThreshold
+                case .fiveMinutes:
+                    // Notify when within 5 minutes but more than 30 seconds away
+                    shouldNotify = timeUntilStart > 0 
+                        && timeUntilStart <= stage.timeThreshold 
+                        && timeUntilStart > NotificationStage.starting.timeThreshold
+                case .starting:
+                    // Notify when event is starting (within 30 seconds of start, or just started)
+                    shouldNotify = timeUntilStart <= stage.timeThreshold && timeUntilStart > -60
+                }
+                
+                if shouldNotify {
+                    await showEventNotification(event, stage: stage)
+                    notifiedStages.insert(stageKey)
+                    break // Only show one notification at a time per event
+                }
             }
         }
         
-        // Clean up old notification IDs (events that have ended)
-        notifiedEventIds = notifiedEventIds.filter { id in
-            events.contains { $0.id == id && $0.end > now }
+        // Clean up old notification stage records (events that have ended)
+        notifiedStages = notifiedStages.filter { stageKey in
+            let eventId = stageKey.components(separatedBy: "-").first ?? ""
+            return events.contains { $0.id == eventId && $0.end > now }
         }
     }
     
     // MARK: - Notifications
     
-    private func showEventNotification(_ event: EventModel) async {
+    private func showEventNotification(_ event: EventModel, stage: NotificationStage) async {
         upcomingEvent = event
         showingNotification = true
         
         let timeString = formatTimeUntilStart(event.start)
         
-        // Show the floating bubble notification
+        // Show the floating bubble notification on all screens
         EventNotificationBubbleManager.shared.showNotification(
             for: event,
             timeUntilStart: timeString,
-            isStartingNow: false,
-            duration: 5.0
+            isStartingNow: stage.isStartingNow
         )
         
         // Also send system notification
-        await sendSystemNotification(
-            title: "Event Starting Soon",
-            body: "\(event.title) starts in \(timeString)",
-            event: event
-        )
+        let title = stage.isStartingNow ? "Event Starting Now" : "Upcoming Event"
+        let body = stage.isStartingNow ? event.title : "\(event.title) in \(timeString)"
         
-        // Auto-hide notification after 5 seconds
-        try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
-        showingNotification = false
+        await sendSystemNotification(
+            title: title,
+            body: body,
+            event: event,
+            stage: stage
+        )
     }
     
-    private func showEventStartingNow(_ event: EventModel) async {
-        upcomingEvent = event
-        showingNotification = true
-        
-        // Show the floating bubble notification
-        EventNotificationBubbleManager.shared.showNotification(
-            for: event,
-            timeUntilStart: "",
-            isStartingNow: true,
-            duration: 5.0
-        )
-        
-        // Also send system notification
-        await sendSystemNotification(
-            title: "Event Starting Now",
-            body: event.title,
-            event: event
-        )
-        
-        // Auto-hide notification after 5 seconds
-        try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
-        showingNotification = false
-    }
-    
-    private func sendSystemNotification(title: String, body: String, event: EventModel) async {
+    private func sendSystemNotification(title: String, body: String, event: EventModel, stage: NotificationStage) async {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
@@ -153,7 +165,7 @@ class EventNotificationManager: ObservableObject {
         }
         
         let request = UNNotificationRequest(
-            identifier: "event-\(event.id)",
+            identifier: "event-\(event.id)-\(stage.rawValue)",
             content: content,
             trigger: nil // Show immediately
         )
@@ -176,5 +188,11 @@ class EventNotificationManager: ObservableObject {
             let minutes = seconds / 60
             return "\(minutes) minute\(minutes == 1 ? "" : "s")"
         }
+    }
+    
+    // Mark a notification as dismissed by user
+    func markNotificationDismissed(eventId: String) {
+        showingNotification = false
+        upcomingEvent = nil
     }
 }
