@@ -205,6 +205,10 @@ class EventNotificationWindow: NSPanel {
         isReleasedWhenClosed = false
         hidesOnDeactivate = false
         
+        // Make content view fully transparent
+        contentView?.wantsLayer = true
+        contentView?.layer?.backgroundColor = .clear
+        
         // Position below notch area for this screen
         positionBelowNotch()
     }
@@ -240,6 +244,10 @@ class EventNotificationWindow: NSPanel {
         let hostingView = NSHostingView(rootView: AnyView(bubbleView))
         hostingView.frame = contentView?.bounds ?? .zero
         hostingView.autoresizingMask = [.width, .height]
+        
+        // Ensure hosting view is transparent
+        hostingView.wantsLayer = true
+        hostingView.layer?.backgroundColor = .clear
         
         contentView?.subviews.forEach { $0.removeFromSuperview() }
         contentView?.addSubview(hostingView)
