@@ -457,8 +457,8 @@ struct EventBlockView: View {
                     .shadow(radius: 1)
             )
             .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 2)
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 3)
                     .onChanged { value in
                         if !isResizing {
                             isResizing = true
