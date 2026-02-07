@@ -38,6 +38,17 @@ class BoringNotchWindow: NSPanel {
         isReleasedWhenClosed = false
         level = .mainMenu + 3
         hasShadow = false
+        
+        // Configure the content view's layer for optimal 120Hz rendering
+        if let contentView = self.contentView {
+            contentView.wantsLayer = true
+            if let layer = contentView.layer {
+                // Enable asynchronous drawing for smoother animation
+                layer.drawsAsynchronously = true
+                // Allow continuous updates for smooth 120Hz animation
+                layer.allowsEdgeAntialiasing = true
+            }
+        }
     }
     
     override var canBecomeKey: Bool {

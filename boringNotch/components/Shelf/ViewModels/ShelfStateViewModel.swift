@@ -6,13 +6,22 @@
 
 import Foundation
 import AppKit
+import Defaults
 
 @MainActor
 final class ShelfStateViewModel: ObservableObject {
     static let shared = ShelfStateViewModel()
 
     @Published private(set) var items: [ShelfItem] = [] {
-        didSet { ShelfPersistenceService.shared.save(items) }
+        didSet { 
+            ShelfPersistenceService.shared.save(items)
+            // Reset auto-clear timer when items change
+            if !items.isEmpty {
+                startAutoClearTimer()
+            } else {
+                stopAutoClearTimer()
+            }
+        }
     }
 
     @Published var isLoading: Bool = false
@@ -22,9 +31,55 @@ final class ShelfStateViewModel: ObservableObject {
     // Queue for deferred bookmark updates to avoid publishing during view updates
     private var pendingBookmarkUpdates: [ShelfItem.ID: Data] = [:]
     private var updateTask: Task<Void, Never>?
+    
+    // Auto-clear timer
+    private var autoClearTask: Task<Void, Never>?
+    private var lastActivityTime: Date = Date()
 
     private init() {
         items = ShelfPersistenceService.shared.load()
+        
+        // Start auto-clear timer if items exist
+        if !items.isEmpty {
+            startAutoClearTimer()
+        }
+    }
+    
+    // MARK: - Auto-Clear Timer
+    
+    private func startAutoClearTimer() {
+        guard Defaults[.autoRemoveShelfItems] else { return }
+        
+        stopAutoClearTimer()
+        lastActivityTime = Date()
+        
+        let timeout = Defaults[.shelfAutoClearTimeout]
+        
+        autoClearTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(60 * 1_000_000_000)) // Check every minute
+                
+                guard let self = self else { return }
+                
+                let elapsed = Date().timeIntervalSince(self.lastActivityTime)
+                if elapsed >= timeout {
+                    self.clearAllItems()
+                    return
+                }
+            }
+        }
+    }
+    
+    private func stopAutoClearTimer() {
+        autoClearTask?.cancel()
+        autoClearTask = nil
+    }
+    
+    func clearAllItems() {
+        for item in items {
+            item.cleanupStoredData()
+        }
+        items.removeAll()
     }
 
 

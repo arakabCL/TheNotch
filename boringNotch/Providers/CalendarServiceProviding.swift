@@ -151,7 +151,8 @@ extension EventModel {
             participants: .init(from: event),
             timeZone: calendar.isSubscribed || calendar.isDelegate ? nil : event.timeZone,
             hasRecurrenceRules: event.hasRecurrenceRules || event.isDetached,
-            priority: nil
+            priority: nil,
+            colorId: nil  // Apple Calendar events don't have colorId
         )
     }
     
@@ -175,7 +176,8 @@ extension EventModel {
             participants: [],
             timeZone: calendar.isSubscribed || calendar.isDelegate ? nil : reminder.timeZone,
             hasRecurrenceRules: reminder.hasRecurrenceRules,
-            priority: .init(from: reminder.priority)
+            priority: .init(from: reminder.priority),
+            colorId: nil  // Reminders don't have colorId
         )
     }
 }
@@ -217,8 +219,11 @@ extension Array where Element == Participant {
 
 extension Participant {
     init(from participant: EKParticipant, isOrganizer: Bool) {
+        let email = participant.url.scheme == "mailto" ? participant.url.absoluteString.replacingOccurrences(of: "mailto:", with: "") : nil
+        
         self.init(
             name: participant.name ?? participant.url.absoluteString.replacingOccurrences(of: "mailto:", with: ""),
+            email: email,
             status: .init(from: participant.participantStatus),
             isOrganizer: isOrganizer,
             isCurrentUser: participant.isCurrentUser

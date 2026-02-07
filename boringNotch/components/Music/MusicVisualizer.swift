@@ -56,7 +56,8 @@ class AudioSpectrum: NSView {
     
     private func startAnimating() {
         guard animationTimer == nil else { return }
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+        // Use 0.15s interval for smoother 120Hz animation while maintaining efficiency
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
             self?.updateBars()
         }
     }
@@ -75,12 +76,13 @@ class AudioSpectrum: NSView {
             let animation = CABasicAnimation(keyPath: "transform.scale.y")
             animation.fromValue = currentScale
             animation.toValue = targetScale
-            animation.duration = 0.3
+            animation.duration = 0.15
             animation.autoreverses = true
             animation.fillMode = .forwards
             animation.isRemovedOnCompletion = false
             if #available(macOS 13.0, *) {
-                animation.preferredFrameRateRange = CAFrameRateRange(minimum: 24, maximum: 24, preferred: 24)
+                // Use high frame rate range for 120Hz ProMotion displays
+                animation.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
             }
             barLayer.add(animation, forKey: "scaleY")
         }

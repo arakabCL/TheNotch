@@ -434,6 +434,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         previousScreens = NSScreen.screens
+        
+        // Start Google Calendar background polling if enabled and signed in
+        if Defaults[.useGoogleCalendar] && GoogleAuthManager.shared.isSignedIn {
+            GoogleCalendarService.shared.startPolling(interval: Defaults[.googleCalendarPollingInterval])
+            // Start event notification monitoring
+            EventNotificationManager.shared.startMonitoring()
+        }
     }
 
     func playWelcomeSound() {

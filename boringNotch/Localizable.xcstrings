@@ -901,6 +901,9 @@
         }
       }
     },
+    "%lld events" : {
+
+    },
     "%lld%%" : {
       "localizations" : {
         "ar" : {
@@ -1300,6 +1303,21 @@
           }
         }
       }
+    },
+    "→" : {
+
+    },
+    "1 minute" : {
+
+    },
+    "2 minutes" : {
+
+    },
+    "5 minutes" : {
+
+    },
+    "30 seconds" : {
+
     },
     "About" : {
       "localizations" : {
@@ -1800,6 +1818,12 @@
           }
         }
       }
+    },
+    "Add guest email" : {
+
+    },
+    "Add location" : {
+
     },
     "Add manually" : {
       "extractionState" : "stale",
@@ -2801,6 +2825,12 @@
           }
         }
       }
+    },
+    "Apple Calendar" : {
+
+    },
+    "Apple Calendar settings are available when Google Calendar is disabled." : {
+
     },
     "Auto-scroll to next event" : {
       "localizations" : {
@@ -4101,6 +4131,9 @@
           }
         }
       }
+    },
+    "Calendar Source" : {
+
     },
     "Calendars" : {
       "localizations" : {
@@ -5602,6 +5635,9 @@
         }
       }
     },
+    "Color" : {
+
+    },
     "Color Presets" : {
       "localizations" : {
         "ar" : {
@@ -5901,6 +5937,12 @@
           }
         }
       }
+    },
+    "Connect Google Calendar" : {
+
+    },
+    "Connect your Google account to see calendar events." : {
+
     },
     "Continue" : {
       "localizations" : {
@@ -7103,7 +7145,6 @@
       }
     },
     "Description" : {
-      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7806,6 +7847,9 @@
         }
       }
     },
+    "Drag to adjust event duration" : {
+
+    },
     "Drop files here" : {
       "localizations" : {
         "ar" : {
@@ -8005,6 +8049,9 @@
           }
         }
       }
+    },
+    "Edit Event" : {
+
     },
     "Edit layout" : {
       "localizations" : {
@@ -8807,6 +8854,9 @@
         }
       }
     },
+    "Enable to show your Google Calendar events in the notch instead of music controls." : {
+
+    },
     "Enable window shadow" : {
       "localizations" : {
         "ar" : {
@@ -8906,6 +8956,12 @@
           }
         }
       }
+    },
+    "Ends" : {
+
+    },
+    "Ends %@" : {
+
     },
     "Enhance your experience with HUDs" : {
       "localizations" : {
@@ -9106,6 +9162,12 @@
           }
         }
       }
+    },
+    "Event Title" : {
+
+    },
+    "Events will automatically refresh at the selected interval." : {
+
     },
     "Expanded drag detection area" : {
       "localizations" : {
@@ -10208,6 +10270,9 @@
         }
       }
     },
+    "Google Account" : {
+
+    },
     "Got it!" : {
       "localizations" : {
         "ar" : {
@@ -10407,6 +10472,9 @@
           }
         }
       }
+    },
+    "Guests" : {
+
     },
     "Hide all-day events" : {
       "localizations" : {
@@ -11607,6 +11675,9 @@
           }
         }
       }
+    },
+    "In %@" : {
+
     },
     "In progress" : {
       "localizations" : {
@@ -15010,6 +15081,9 @@
         }
       }
     },
+    "No upcoming events" : {
+
+    },
     "Not Now" : {
       "localizations" : {
         "ar" : {
@@ -15509,6 +15583,9 @@
           }
         }
       }
+    },
+    "Now:" : {
+
     },
     "Open Calendar Settings" : {
       "localizations" : {
@@ -16109,6 +16186,9 @@
           }
         }
       }
+    },
+    "Options" : {
+
     },
     "Pick a Color" : {
       "localizations" : {
@@ -16909,6 +16989,12 @@
           }
         }
       }
+    },
+    "Refresh interval" : {
+
+    },
+    "Refresh Now" : {
+
     },
     "Release name" : {
       "localizations" : {
@@ -18112,6 +18198,12 @@
         }
       }
     },
+    "Save" : {
+
+    },
+    "See your schedule at a glance" : {
+
+    },
     "Select the music source you want to use. You can change this later in the app settings." : {
       "localizations" : {
         "ar" : {
@@ -18712,6 +18804,9 @@
         }
       }
     },
+    "Show Apple Calendar" : {
+
+    },
     "Show battery indicator" : {
       "localizations" : {
         "ar" : {
@@ -18913,6 +19008,7 @@
       }
     },
     "Show calendar" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -20212,6 +20308,15 @@
         }
       }
     },
+    "Sign in with Google" : {
+
+    },
+    "Sign Out" : {
+
+    },
+    "Signed in" : {
+
+    },
     "Slider color" : {
       "localizations" : {
         "ar" : {
@@ -20811,6 +20916,12 @@
           }
         }
       }
+    },
+    "Starting now!" : {
+
+    },
+    "Starts" : {
+
     },
     "Stopped" : {
       "extractionState" : "stale",
@@ -22115,6 +22226,9 @@
         }
       }
     },
+    "Updating..." : {
+
+    },
     "Upgrade to Pro" : {
       "localizations" : {
         "ar" : {
@@ -22214,6 +22328,9 @@
           }
         }
       }
+    },
+    "Use Google Calendar" : {
+
     },
     "Use music visualizer spectrogram" : {
       "localizations" : {
@@ -22715,6 +22832,9 @@
         }
       }
     },
+    "View in Google Calendar" : {
+
+    },
     "View on GitHub: pear-devs/pear-desktop" : {
       "localizations" : {
         "ar" : {
@@ -22814,6 +22934,9 @@
           }
         }
       }
+    },
+    "Waiting for authorization..." : {
+
     },
     "Welcome" : {
       "localizations" : {

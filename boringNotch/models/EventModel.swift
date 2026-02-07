@@ -24,6 +24,7 @@ struct EventModel: Equatable, Identifiable {
     let timeZone: TimeZone?
     let hasRecurrenceRules: Bool
     let priority: Priority?
+    let colorId: String?  // Google Calendar color ID (1-11)
 }
 
 enum AttendanceStatus: Comparable {
@@ -113,6 +114,7 @@ extension EventModel {
 
 struct Participant: Hashable {
     let name: String
+    let email: String?
     let status: AttendanceStatus
     let isOrganizer: Bool
     let isCurrentUser: Bool
