@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		07E8E5CCDD4A03A2DDCCBDC5 /* EventNotificationBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32265DBC7355C6E8D0EB6081 /* EventNotificationBubble.swift */; };
 		0E32586B1C83AEBDA06779AA /* EventNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99BBB3C16153715FC5BCB362 /* EventNotificationManager.swift */; };
 		1100290C2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1100290B2E847E2800035A57 /* NSItemProvider+LoadHelpers.swift */; };
 		110029272E84FD4C00035A57 /* TemporaryFileStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110029262E84FD4C00035A57 /* TemporaryFileStorageService.swift */; };
@@ -284,6 +285,7 @@
 		14E9FEAD2C7325770062E83F /* Button+Bouncing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Button+Bouncing.swift"; sourceTree = "<group>"; };
 		14FC6E4F2C7DED5600C7BEA5 /* DataTypes+Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DataTypes+Extensions.swift"; sourceTree = "<group>"; };
 		30FA143C66D75A0778C1D102 /* GoogleCalendarService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GoogleCalendarService.swift; sourceTree = "<group>"; };
+		32265DBC7355C6E8D0EB6081 /* EventNotificationBubble.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventNotificationBubble.swift; sourceTree = "<group>"; };
 		40DD87EB30D299912085243B /* GoogleAuthManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GoogleAuthManager.swift; sourceTree = "<group>"; };
 		507266DA2C908E2E00A2D00D /* HoverButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverButton.swift; sourceTree = "<group>"; };
 		5917FD102E57891600E87F1C /* MediaKeyInterceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaKeyInterceptor.swift; sourceTree = "<group>"; };
@@ -751,6 +753,7 @@
 				14D570C52C5F38210011E668 /* BoringHeader.swift */,
 				14D570D12C5F6C6A0011E668 /* BoringExtrasMenu.swift */,
 				1471A8582C6281BD0058408D /* BoringNotchWindow.swift */,
+				32265DBC7355C6E8D0EB6081 /* EventNotificationBubble.swift */,
 			);
 			path = Notch;
 			sourceTree = "<group>";
@@ -1067,6 +1070,7 @@
 				2AF392CCC9B24802DA803E3D /* GoogleCalendarSettingsView.swift in Sources */,
 				6EF85760139078B50F02B468 /* CalendarLiveActivity.swift in Sources */,
 				0E32586B1C83AEBDA06779AA /* EventNotificationManager.swift in Sources */,
+				07E8E5CCDD4A03A2DDCCBDC5 /* EventNotificationBubble.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

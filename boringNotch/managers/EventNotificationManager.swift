@@ -92,18 +92,17 @@ class EventNotificationManager: ObservableObject {
     // MARK: - Notifications
     
     private func showEventNotification(_ event: EventModel) async {
-        // Show in the notch using sneak peek
         upcomingEvent = event
         showingNotification = true
         
-        // Show notch sneak peek
         let timeString = formatTimeUntilStart(event.start)
-        BoringViewCoordinator.shared.toggleSneakPeek(
-            status: true,
-            type: .calendar,
-            duration: 5.0,
-            icon: "calendar",
-            text: "📅 \(event.title) in \(timeString)"
+        
+        // Show the floating bubble notification
+        EventNotificationBubbleManager.shared.showNotification(
+            for: event,
+            timeUntilStart: timeString,
+            isStartingNow: false,
+            duration: 5.0
         )
         
         // Also send system notification
@@ -122,13 +121,12 @@ class EventNotificationManager: ObservableObject {
         upcomingEvent = event
         showingNotification = true
         
-        // Show notch sneak peek
-        BoringViewCoordinator.shared.toggleSneakPeek(
-            status: true,
-            type: .calendar,
-            duration: 5.0,
-            icon: "calendar.badge.clock",
-            text: "📅 \(event.title) - Starting Now!"
+        // Show the floating bubble notification
+        EventNotificationBubbleManager.shared.showNotification(
+            for: event,
+            timeUntilStart: "",
+            isStartingNow: true,
+            duration: 5.0
         )
         
         // Also send system notification
