@@ -35,13 +35,12 @@ struct HorizontalTimelineView: View {
         }
         .onAppear {
             startTimeUpdates()
+            // Start polling if signed in (will be a no-op if already polling from app launch)
             if authManager.isSignedIn {
                 calendarService.startPolling(interval: Defaults[.googleCalendarPollingInterval])
             }
         }
-        .onDisappear {
-            calendarService.stopPolling()
-        }
+        // Don't stop polling on disappear - keep updating in background
         .popover(isPresented: $isShowingDetail) {
             if let event = selectedEvent {
                 EventEditView(event: event)
@@ -521,6 +520,7 @@ struct EventEditView: View {
     @State private var location: String
     @State private var notes: String
     @State private var guests: [String]
+    @State private var selectedColorId: String?
     @State private var newGuestEmail: String = ""
     @State private var isSaving: Bool = false
     @State private var errorMessage: String?
@@ -534,6 +534,7 @@ struct EventEditView: View {
         _notes = State(initialValue: event.notes ?? "")
         // Map participants back to emails for editing
         _guests = State(initialValue: event.participants.compactMap { $0.email })
+        _selectedColorId = State(initialValue: event.colorId)
     }
     
     var body: some View {
@@ -573,6 +574,45 @@ struct EventEditView: View {
                             DatePicker("Ends", selection: $end)
                                 .labelsHidden()
                         }
+                    }
+                    
+                    // Color picker
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "paintpalette")
+                                .foregroundColor(.gray)
+                                .frame(width: 20)
+                            Text("Color")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                        
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6), spacing: 8) {
+                            ForEach(GoogleCalendarColor.allColors) { colorOption in
+                                Button(action: {
+                                    selectedColorId = colorOption.id
+                                }) {
+                                    Circle()
+                                        .fill(Color(nsColor: colorOption.color))
+                                        .frame(width: 28, height: 28)
+                                        .overlay(
+                                            Circle()
+                                                .strokeBorder(Color.white, lineWidth: selectedColorId == colorOption.id ? 2 : 0)
+                                        )
+                                        .overlay(
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 12, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .opacity(selectedColorId == colorOption.id ? 1 : 0)
+                                        )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .help(colorOption.name)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color.white.opacity(0.05))
+                        .cornerRadius(6)
                     }
                     
                     // Location
@@ -694,7 +734,7 @@ struct EventEditView: View {
             }
         }
         .padding(20)
-        .frame(width: 380, height: 500)
+        .frame(width: 380, height: 550)
         .background(Color(white: 0.12))
     }
     
@@ -710,7 +750,8 @@ struct EventEditView: View {
                     location: location,
                     start: start,
                     end: end,
-                    attendees: guests
+                    attendees: guests,
+                    colorId: selectedColorId
                 )
                 dismiss()
             } catch {

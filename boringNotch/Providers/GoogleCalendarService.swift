@@ -162,7 +162,7 @@ class GoogleCalendarService: ObservableObject {
     }
     
     /// Update an existing event
-    func updateEvent(id: String, summary: String, description: String?, location: String?, start: Date, end: Date, attendees: [String]) async throws {
+    func updateEvent(id: String, summary: String, description: String?, location: String?, start: Date, end: Date, attendees: [String], colorId: String? = nil) async throws {
         guard authManager.isSignedIn else { throw GoogleCalendarError.notAuthenticated }
         
         let accessToken = try await authManager.getValidAccessToken()
@@ -176,7 +176,8 @@ class GoogleCalendarService: ObservableObject {
             location: location,
             start: GoogleEventDateTime(date: nil, dateTime: formatter.string(from: start), timeZone: TimeZone.current.identifier),
             end: GoogleEventDateTime(date: nil, dateTime: formatter.string(from: end), timeZone: TimeZone.current.identifier),
-            attendees: attendees.map { GoogleAttendee(email: $0, displayName: nil, responseStatus: nil, organizer: nil, self: nil) }
+            attendees: attendees.map { GoogleAttendee(email: $0, displayName: nil, responseStatus: nil, organizer: nil, self: nil) },
+            colorId: colorId
         )
         
         let url = URL(string: "\(baseURL)/calendars/primary/events/\(id)")!
@@ -233,6 +234,7 @@ struct GoogleEventPatch: Codable {
     let start: GoogleEventDateTime?
     let end: GoogleEventDateTime?
     let attendees: [GoogleAttendee]?
+    let colorId: String?
 }
 
 struct GoogleEvent: Codable {
@@ -307,27 +309,35 @@ enum GoogleCalendarError: LocalizedError {
 
 // MARK: - EventModel Extension for Google Events
 
-// Standalone function to avoid MainActor isolation issues
-private func googleCalendarColorForId(_ colorId: String?) -> NSColor {
-    // Google Calendar color IDs (1-11 for events)
-    let colors: [String: NSColor] = [
-        "1": NSColor(red: 0.47, green: 0.53, blue: 0.98, alpha: 1), // Lavender
-        "2": NSColor(red: 0.20, green: 0.66, blue: 0.33, alpha: 1), // Sage
-        "3": NSColor(red: 0.55, green: 0.36, blue: 0.96, alpha: 1), // Grape
-        "4": NSColor(red: 0.91, green: 0.47, blue: 0.51, alpha: 1), // Flamingo
-        "5": NSColor(red: 0.95, green: 0.72, blue: 0.00, alpha: 1), // Banana
-        "6": NSColor(red: 0.95, green: 0.52, blue: 0.11, alpha: 1), // Tangerine
-        "7": NSColor(red: 0.02, green: 0.66, blue: 0.84, alpha: 1), // Peacock
-        "8": NSColor(red: 0.38, green: 0.38, blue: 0.38, alpha: 1), // Graphite
-        "9": NSColor(red: 0.33, green: 0.47, blue: 0.98, alpha: 1), // Blueberry
-        "10": NSColor(red: 0.03, green: 0.56, blue: 0.24, alpha: 1), // Basil
-        "11": NSColor(red: 0.85, green: 0.25, blue: 0.20, alpha: 1)  // Tomato
+/// Google Calendar color options (1-11 for events)
+struct GoogleCalendarColor: Identifiable {
+    let id: String
+    let name: String
+    let color: NSColor
+    
+    static let allColors: [GoogleCalendarColor] = [
+        GoogleCalendarColor(id: "1", name: "Lavender", color: NSColor(red: 0.47, green: 0.53, blue: 0.98, alpha: 1)),
+        GoogleCalendarColor(id: "2", name: "Sage", color: NSColor(red: 0.20, green: 0.66, blue: 0.33, alpha: 1)),
+        GoogleCalendarColor(id: "3", name: "Grape", color: NSColor(red: 0.55, green: 0.36, blue: 0.96, alpha: 1)),
+        GoogleCalendarColor(id: "4", name: "Flamingo", color: NSColor(red: 0.91, green: 0.47, blue: 0.51, alpha: 1)),
+        GoogleCalendarColor(id: "5", name: "Banana", color: NSColor(red: 0.95, green: 0.72, blue: 0.00, alpha: 1)),
+        GoogleCalendarColor(id: "6", name: "Tangerine", color: NSColor(red: 0.95, green: 0.52, blue: 0.11, alpha: 1)),
+        GoogleCalendarColor(id: "7", name: "Peacock", color: NSColor(red: 0.02, green: 0.66, blue: 0.84, alpha: 1)),
+        GoogleCalendarColor(id: "8", name: "Graphite", color: NSColor(red: 0.38, green: 0.38, blue: 0.38, alpha: 1)),
+        GoogleCalendarColor(id: "9", name: "Blueberry", color: NSColor(red: 0.33, green: 0.47, blue: 0.98, alpha: 1)),
+        GoogleCalendarColor(id: "10", name: "Basil", color: NSColor(red: 0.03, green: 0.56, blue: 0.24, alpha: 1)),
+        GoogleCalendarColor(id: "11", name: "Tomato", color: NSColor(red: 0.85, green: 0.25, blue: 0.20, alpha: 1))
     ]
     
-    guard let id = colorId else {
-        return NSColor.systemBlue
+    static func color(for id: String?) -> NSColor {
+        guard let id = id else { return NSColor.systemBlue }
+        return allColors.first { $0.id == id }?.color ?? NSColor.systemBlue
     }
-    return colors[id] ?? NSColor.systemBlue
+}
+
+// Standalone function to avoid MainActor isolation issues
+private func googleCalendarColorForId(_ colorId: String?) -> NSColor {
+    return GoogleCalendarColor.color(for: colorId)
 }
 
 extension EventModel {
@@ -372,7 +382,8 @@ extension EventModel {
             participants: participants,
             timeZone: googleEvent.start.timeZone.flatMap { TimeZone(identifier: $0) },
             hasRecurrenceRules: googleEvent.recurringEventId != nil,
-            priority: nil
+            priority: nil,
+            colorId: googleEvent.colorId
         )
     }
 }

@@ -169,6 +169,7 @@ extension Defaults.Keys {
     static let quickShareProvider = Key<String>("quickShareProvider", default: QuickShareProvider.defaultProvider.id)
     static let copyOnDrag = Key<Bool>("copyOnDrag", default: false)
     static let autoRemoveShelfItems = Key<Bool>("autoRemoveShelfItems", default: false)
+    static let shelfAutoClearTimeout = Key<TimeInterval>("shelfAutoClearTimeout", default: 45 * 60) // 45 minutes
     static let expandedDragDetection = Key<Bool>("expandedDragDetection", default: true)
     
     // MARK: Calendar
@@ -181,6 +182,8 @@ extension Defaults.Keys {
     static let useGoogleCalendar = Key<Bool>("useGoogleCalendar", default: true)
     static let googleCalendarPollingInterval = Key<Double>("googleCalendarPollingInterval", default: 60)
     static let googleCalendarClientId = Key<String>("googleCalendarClientId", default: "")
+    static let enableCalendarNotifications = Key<Bool>("enableCalendarNotifications", default: true)
+    static let calendarNotificationLeadTime = Key<TimeInterval>("calendarNotificationLeadTime", default: 60) // 1 minute before
     
     // MARK: Fullscreen Media Detection
     static let hideNotchOption = Key<HideNotchOption>("hideNotchOption", default: .nowPlayingOnly)
