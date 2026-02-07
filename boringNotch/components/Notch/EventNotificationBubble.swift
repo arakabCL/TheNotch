@@ -101,29 +101,15 @@ struct EventNotificationBubbleView: View {
         .padding(.vertical, 12)
         .frame(minWidth: 240, maxWidth: 360)
         .background(
-            ZStack {
-                // Light translucent background
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.ultraThinMaterial)
-                    .environment(\.colorScheme, .light)
-                
-                // Subtle white overlay for lightness
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white.opacity(0.3))
-                
-                // Subtle color tint from event
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(nsColor: event.calendar.color).opacity(0.05))
-                
-                // Light border
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(
-                        Color.white.opacity(0.5),
-                        lineWidth: 0.5
-                    )
-            }
+            // Simple blurred background that clips properly
+            Color.white.opacity(0.85)
         )
-        .shadow(color: Color.black.opacity(0.15), radius: 12, y: 4)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.12), radius: 8, y: 3)
         .scaleEffect(isVisible ? 1.0 : 0.5)
         .opacity(isVisible ? 1.0 : 0.0)
         .offset(y: isVisible ? 0 : -20)
@@ -284,7 +270,7 @@ class EventNotificationWindow: NSPanel {
 class EventNotificationBubbleManager {
     static let shared = EventNotificationBubbleManager()
     
-    private var windows: [NSScreen: EventNotificationWindow] = [:]
+    private var windows: [EventNotificationWindow] = []
     private var currentEventId: String?
     
     private init() {}
@@ -298,7 +284,7 @@ class EventNotificationBubbleManager {
         // Create a window for each connected screen
         for screen in NSScreen.screens {
             let window = EventNotificationWindow(screen: screen)
-            windows[screen] = window
+            windows.append(window)
             
             window.show(
                 event: event,
@@ -312,7 +298,7 @@ class EventNotificationBubbleManager {
     }
     
     func dismissAll() {
-        for (_, window) in windows {
+        for window in windows {
             window.dismiss()
         }
         windows.removeAll()
@@ -323,4 +309,3 @@ class EventNotificationBubbleManager {
         return currentEventId == eventId
     }
 }
-
